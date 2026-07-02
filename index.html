@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>로렌즈 어트랙터 · Lorenz Attractor</title>
+  <style>
+    :root {
+      --bg:        #04050d;
+      --fg:        rgba(232, 238, 255, 0.88);
+      --muted:     rgba(200, 215, 245, 0.55);
+      --accent:    #80a8ff;
+      --panel-bg:  rgba(8, 10, 22, 0.36);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: var(--bg);
+      font-family: ui-serif, Georgia, "Times New Roman", serif;
+      color: var(--fg);
+    }
+    canvas { display: block; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+
+    .vignette {
+      position: fixed; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse at center,
+        rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+      z-index: 2;
+    }
+
+    .hud {
+      position: fixed;
+      pointer-events: none;
+      user-select: none;
+      text-shadow: 0 0 12px rgba(0,0,0,0.55);
+      z-index: 3;
+    }
+    .hud-tl { top: 26px; left: 30px; }
+    .hud-bl {
+      bottom: 22px; left: 28px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px; line-height: 1.75;
+      color: var(--muted);
+      transition: color 180ms ease-out, text-shadow 180ms ease-out;
+    }
+    .hud-bl.flash {
+      color: rgba(255, 235, 200, 0.95);
+      text-shadow: 0 0 14px rgba(255, 200, 120, 0.55);
+    }
+    .hud-br {
+      bottom: 22px; right: 30px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px; line-height: 1.85;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+    }
+    h1 .sub {
+      display: block;
+      font-family: "Georgia", serif;
+      font-style: italic;
+      font-size: 0.72em;
+      opacity: 0.6;
+      margin-top: 4px;
+      letter-spacing: 0.02em;
+    }
+    .eq {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px; line-height: 1.9;
+      opacity: 0.78;
+      margin-top: 16px;
+      padding-left: 0;
+    }
+    .key {
+      display: inline-block;
+      padding: 1px 6px;
+      margin: 0 1px;
+      border: 1px solid var(--muted);
+      border-radius: 3px;
+      color: var(--fg);
+      font-size: 10px;
+    }
+    @media (max-width: 720px) {
+      .hud-tl h1 { font-size: 17px; }
+      .eq { font-size: 11px; }
+      .hud-bl, .hud-br { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="vignette"></div>
+
+  <div class="hud hud-tl">
+    <h1>LORENZ ATTRACTOR<span class="sub">🦋 Strange Attractor · Chaotic Flow</span></h1>
+    <div class="eq">
+      <span style="opacity:0.55">dx/dt =</span> σ · (y − x)<br/>
+      <span style="opacity:0.55">dy/dt =</span> x · (ρ − z) − y<br/>
+      <span style="opacity:0.55">dz/dt =</span> x·y − β·z
+    </div>
+  </div>
+
+  <div class="hud hud-bl" id="stats">
+    σ = 10 &nbsp; ρ = 28 &nbsp; β = 2.667<br/>
+    dt = 0.0050 &nbsp; points = 30,000<br/>
+    sim time = 0.000 &nbsp; fps = 60
+  </div>
+
+  <div class="hud hud-br">
+    <span class="key">drag</span> orbit &nbsp;
+    <span class="key">wheel</span> zoom<br/>
+    <span class="key">space</span> auto-rotate toggle<br/>
+    <span class="key">r</span> reset &nbsp;
+    <span class="key">+</span> <span class="key">−</span> dt
+  </div>
+
+  <noscript>
+    <div style="position:fixed;inset:0;display:grid;place-items:center;color:#fff;font-family:sans-serif;">
+      JavaScript가 비활성화되어 있습니다 — 이 시각화는 자바스크립트가 필요합니다.
+    </div>
+  </noscript>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+  /* =========================================================================
+     CONFIG — tune these to alter the aesthetic.
+     The algorithm below mirrors tests/test-lorenz.mjs (verified GREEN).
+     ========================================================================= */
+  const CFG = {
+    POINT_COUNT:       30000,    // trail points
+    STEPS_PER_FRAME:   8,        // integrations per render frame
+    DT:                0.005,    // integration time step
+    SIGMA:             10.0,     // Prandtl
+    RHO:               28.0,     // Rayleigh (28 = standard chaos)
+    BETA:              8 / 3,    // geometric ratio
+    AUTO_ROTATE_SPEED: 0.45,     // radians / second ≈ 0.07
+    COLOR_SPEED_MIN:   0.0,      // below → red
+    COLOR_SPEED_MAX:   60.0,     // above → blue
+    TRAIL_FADE:        1.0,      // 1.0 = perpetual; <1.0 (e.g. 0.995) for fading trail
+    INITIAL:           [0.1, 0.0, 0.0],
+    PREFILL_STEPS:     30000,    // pre-simulate so the first frame is fully formed
+  };
+
+  /* =========================================================================
+     THREE.JS BOOTSTRAP
+     ========================================================================= */
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x04050d);
+  scene.fog = new THREE.FogExp2(0x04050d, 0.0042);
+
+  const camera = new THREE.PerspectiveCamera(
+    55, window.innerWidth / window.innerHeight, 0.1, 600
+  );
+  camera.position.set(58, 32, 102);
+  camera.lookAt(0, 0, 24);
+
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    powerPreference: 'high-performance',
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping  = true;
+  controls.dampingFactor  = 0.045;
+  controls.autoRotate     = true;
+  controls.autoRotateSpeed = CFG.AUTO_ROTATE_SPEED;
+  controls.target.set(0, 0, 24);
+  controls.minDistance    = 40;
+  controls.maxDistance    = 240;
+  controls.enablePan      = false;
+  controls.rotateSpeed    = 0.55;
+  controls.zoomSpeed      = 0.7;
+
+  /* =========================================================================
+     TRAIL BUFFER — single THREE.Line backed by a Float32 ring buffer.
+     We keep a C(continuous) polyline of N=30k vertices. Each frame we
+     STEPS_PER_FRAME new points at the tail and drop the same number from
+     the head via TypedArray.copyWithin (memcpy-fast).
+     ========================================================================= */
+  const N = CFG.POINT_COUNT;
+
+  const positions = new Float32Array(N * 3);
+  const colors    = new Float32Array(N * 3);
+
+  const geometry  = new THREE.BufferGeometry();
+  const positionAttr = new THREE.BufferAttribute(positions, 3);
+  positionAttr.setUsage(THREE.DynamicDrawUsage);
+  const colorAttr = new THREE.BufferAttribute(colors, 3);
+  colorAttr.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute('position', positionAttr);
+  geometry.setAttribute('color',    colorAttr);
+
+  const material = new THREE.LineBasicMaterial({
+    vertexColors: true,
+    transparent:  CFG.TRAIL_FADE < 1.0,
+    blending:     CFG.TRAIL_FADE < 1.0 ? THREE.AdditiveBlending : THREE.NormalBlending,
+    depthWrite:   false,
+  });
+
+  const line = new THREE.Line(geometry, material);
+  scene.add(line);
+
+  /* =========================================================================
+     HEAD — a tiny glowing dot at the leading edge of the trajectory.
+     Adds a focal point and shows the "spaceship" leaving the trail.
+     ========================================================================= */
+  const headGeom = new THREE.SphereGeometry(0.55, 16, 16);
+  const headMat  = new THREE.MeshBasicMaterial({
+    color: 0xfff4d6,
+    transparent: true,
+    opacity: 0.95,
+  });
+  const head = new THREE.Mesh(headGeom, headMat);
+  scene.add(head);
+
+  /* =========================================================================
+     COLORS — speed → HSL hue  (red @ slow → blue @ fast)
+     ========================================================================= */
+  const _color = new THREE.Color();
+
+  function writeColor(idxBase, speed) {
+    let t = (speed - CFG.COLOR_SPEED_MIN) / (CFG.COLOR_SPEED_MAX - CFG.COLOR_SPEED_MIN);
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    // hue 0.0 (red) → 0.66 (blue); passes through orange/yellow/green/cyan
+    _color.setHSL(0.66 * t, 0.95, 0.55);
+    colors[idxBase]     = _color.r;
+    colors[idxBase + 1] = _color.g;
+    colors[idxBase + 2] = _color.b;
+  }
+
+  /* =========================================================================
+     LORENZ STATE
+     ========================================================================= */
+  let x = CFG.INITIAL[0];
+  let y = CFG.INITIAL[1];
+  let z = CFG.INITIAL[2];
+  let simTime = 0;
+
+  function lorenzIntegrate() {
+    const dx = CFG.SIGMA * (y - x);
+    const dy = x * (CFG.RHO - z) - y;
+    const dz = x * y   - CFG.BETA * z;
+    const speed = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    // Euler step (verified accurate at this dt by test-lorenz.mjs S2)
+    x += dx * CFG.DT;
+    y += dy * CFG.DT;
+    z += dz * CFG.DT;
+    simTime += CFG.DT;
+    return speed;
+  }
+
+  /* =========================================================================
+     PREFILL — simulate N steps BEFORE first render so the very first frame
+     already shows the full butterfly. Without this, the trail would build
+     out from a single point at the origin over many seconds.
+     ========================================================================= */
+  (function prefill() {
+    for (let k = 0; k < CFG.PREFILL_STEPS; k++) {
+      const dx = CFG.SIGMA * (y - x);
+      const dy = x * (CFG.RHO - z) - y;
+      const dz = x * y   - CFG.BETA * z;
+      const speed = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      x += dx * CFG.DT;
+      y += dy * CFG.DT;
+      z += dz * CFG.DT;
+
+      const i = k % N;                        // ring-fill so buffer never needs shifting yet
+      const base = i * 3;
+      positions[base]     = x;
+      positions[base + 1] = y;
+      positions[base + 2] = z;
+      writeColor(base, speed);
+    }
+    simTime = CFG.PREFILL_STEPS * CFG.DT;
+    positionAttr.needsUpdate = true;
+    colorAttr.needsUpdate    = true;
+  })();
+
+  /* =========================================================================
+     RESET
+     ========================================================================= */
+  function resetTrail() {
+    x = CFG.INITIAL[0]; y = CFG.INITIAL[1]; z = CFG.INITIAL[2];
+    simTime = 0;
+    for (let i = 0; i < N; i++) {
+      positions[i*3]     = x;
+      positions[i*3 + 1] = y;
+      positions[i*3 + 2] = z;
+      writeColor(i*3, 0);
+    }
+    positionAttr.needsUpdate = true;
+    colorAttr.needsUpdate    = true;
+  }
+
+  /* =========================================================================
+     TICK — main integration + buffer rolling
+     ========================================================================= */
+  function tick() {
+    /* 1. Optional multiplicative fade across all colors.
+          Only triggers when TRAIL_FADE < 1.0 (a small perf cost). */
+    if (CFG.TRAIL_FADE < 1.0) {
+      for (let i = 0; i < colors.length; i++) {
+        colors[i] *= CFG.TRAIL_FADE;
+      }
+      colorAttr.needsUpdate = true;
+    }
+
+    /* 2. Roll the buffer: copy positions & colors left by STEPS_PER_FRAME*3
+          floats. Indexed access at the tail is undefined garbage until we
+          overwrite it in step 3 — that's fine because we read nothing there. */
+    const SHIFT3 = CFG.STEPS_PER_FRAME * 3;
+    positions.copyWithin(0, SHIFT3);
+    colors.copyWithin(0, SHIFT3);
+
+    /* 3. Integrate STEPS_PER_FRAME new points at the trailing end. */
+    const tailStart = (N - CFG.STEPS_PER_FRAME) * 3;
+    for (let s = 0; s < CFG.STEPS_PER_FRAME; s++) {
+      const dx = CFG.SIGMA * (y - x);
+      const dy = x * (CFG.RHO - z) - y;
+      const dz = x * y   - CFG.BETA * z;
+      const speed = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      x += dx * CFG.DT;
+      y += dy * CFG.DT;
+      z += dz * CFG.DT;
+      simTime += CFG.DT;
+
+      const base = tailStart + s * 3;
+      positions[base]     = x;
+      positions[base + 1] = y;
+      positions[base + 2] = z;
+      writeColor(base, speed);
+    }
+
+    /* 4. GPU upload + render. */
+    positionAttr.needsUpdate = true;
+    colorAttr.needsUpdate    = true;
+
+    // Move head indicator to the live state
+    head.position.set(x, y, z);
+
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  /* =========================================================================
+     KEYBOARD
+     Match on e.code (physical key) so this works on US / Korean / any layout.
+     ========================================================================= */
+  const DT_MIN = 0.0005;
+  const DT_MAX = 0.05;
+  const DT_STEP = 1.5;       // ±50 % per press — visible within 1 second
+  const statsElForFlash = document.getElementById('stats');
+  let flashUntil = 0;
+  function flashDt() { flashUntil = performance.now() + 380; }
+
+  window.addEventListener('keydown', (e) => {
+    // Ignore key repeats so holding the key doesn't blow past limits instantly.
+    if (e.repeat) return;
+
+    if (e.code === 'Space') {
+      controls.autoRotate = !controls.autoRotate;
+      e.preventDefault();
+    } else if (e.code === 'KeyR') {
+      resetTrail();
+      flashDt();
+    } else if (
+      e.code === 'Equal'      ||  // = / + on US row, Ð/¡ on Korean row
+      e.code === 'NumpadAdd'  ||
+      e.code === 'BracketRight'   // ] on Korean (some layouts)
+    ) {
+      CFG.DT = Math.min(CFG.DT * DT_STEP, DT_MAX);
+      flashDt();
+    } else if (
+      e.code === 'Minus'          ||  // - on US row, Korean minus
+      e.code === 'NumpadSubtract' ||
+      e.code === 'BracketLeft'        // [ on Korean (some layouts)
+    ) {
+      CFG.DT = Math.max(CFG.DT / DT_STEP, DT_MIN);
+      flashDt();
+    }
+  });
+
+  /* =========================================================================
+     RESIZE
+     ========================================================================= */
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  /* =========================================================================
+     HUD (throttled — only updates twice/sec)
+     ========================================================================= */
+  const statsEl = document.getElementById('stats');
+  let fpsCount = 0, fpsLastT = performance.now(), currentFps = 60;
+  let hudLastT = 0;
+
+  function updateHud(now) {
+    fpsCount++;
+    if (now - fpsLastT >= 500) {
+      currentFps = Math.round((fpsCount * 1000) / (now - fpsLastT));
+      fpsCount = 0;
+      fpsLastT = now;
+    }
+    if (now - hudLastT < 250) return;
+    hudLastT = now;
+    statsEl.innerHTML =
+      `σ = ${CFG.SIGMA.toFixed(0)} &nbsp; ρ = ${CFG.RHO.toFixed(0)} &nbsp; β = ${CFG.BETA.toFixed(3)}<br/>` +
+      `dt = ${CFG.DT.toFixed(4)} &nbsp; points = ${N.toLocaleString()}<br/>` +
+      `sim t = ${simTime.toFixed(2)} &nbsp; fps = ${currentFps}`;
+    // Brief glow when dt (or anything else) just changed.
+    if (now < flashUntil) {
+      statsEl.classList.add('flash');
+    } else {
+      statsEl.classList.remove('flash');
+    }
+  }
+
+  /* =========================================================================
+     LOOP
+     ========================================================================= */
+  function loop() {
+    tick();
+    updateHud(performance.now());
+    requestAnimationFrame(loop);
+  }
+  loop();
+  </script>
+</body>
+</html>

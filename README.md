@@ -8,6 +8,24 @@
 
 ---
 
+## 🎬 라이브 데모 (Live Demo)
+
+> **👉 [https://lorenz-attractor-virid.vercel.app/](https://lorenz-attractor-virid.vercel.app/)** — 브라우저에서 바로 실행 (60fps, WebGL)
+
+| | |
+|---|---|
+| ![Demo](https://img.shields.io/badge/Live-Demo-7C3AED?style=for-the-badge&logo=vercel&logoColor=white) | [![Repo](https://img.shields.io/badge/GitHub-sigco3111%2Florenz--attractor-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sigco3111/lorenz-attractor) |
+| ![Status](https://img.shields.io/badge/Status-Live-22C55E?style=flat-square) | ![Stack](https://img.shields.io/badge/Stack-Three.js-000000?style=flat-square&logo=three.js&logoColor=white) |
+| ![License](https://img.shields.io/badge/License-MIT-F1C40F?style=flat-square) | ![Deps](https://img.shields.io/badge/Dependencies-0-9CA3AF?style=flat-square) |
+
+### 🎮 빠른 사용법
+1. 위 데모 링크 클릭 → 브라우저에서 페이지 열기
+2. **자동 카메라 공전** 시작 — 궤적 주위를 천천히 회전
+3. **마우스 드래그** — 궤도 회전 / **휠** — 줌 인·아웃
+4. **`space`** — 공전 일시정지 / **`r`** — 궤적 리셋 / **`+`/`-`** — 시간 단계(dt) 조정
+
+---
+
 ## 🤖 생성 정보 (Attribution)
 
 이 프로젝트의 코드는 아래 모델과 프롬프트를 이용해 **자동으로 생성**되었습니다.

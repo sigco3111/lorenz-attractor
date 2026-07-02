@@ -1,0 +1,14 @@
+# Runtime / tooling artifacts (NOT shipped)
+.omo/
+
+# Editor / OS
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Local-only node
+node_modules/

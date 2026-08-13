@@ -10,11 +10,11 @@
 
 ## 🎬 라이브 데모 (Live Demo)
 
-> **👉 [https://lorenz-attractor-virid.vercel.app/](https://lorenz-attractor-virid.vercel.app/)** — 브라우저에서 바로 실행 (60fps, WebGL)
+> **👉 [https://sigco3111.github.io/lorenz-attractor/](https://sigco3111.github.io/lorenz-attractor/)** — 브라우저에서 바로 실행 (60fps, WebGL)
 
 | | |
 |---|---|
-| ![Demo](https://img.shields.io/badge/Live-Demo-7C3AED?style=for-the-badge&logo=vercel&logoColor=white) | [![Repo](https://img.shields.io/badge/GitHub-sigco3111%2Florenz--attractor-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sigco3111/lorenz-attractor) |
+| ![Demo](https://img.shields.io/badge/Live-Demo-222222?style=for-the-badge&logo=githubpages&logoColor=white) | [![Repo](https://img.shields.io/badge/GitHub-sigco3111%2Florenz--attractor-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sigco3111/lorenz-attractor) |
 | ![Status](https://img.shields.io/badge/Status-Live-22C55E?style=flat-square) | ![Stack](https://img.shields.io/badge/Stack-Three.js-000000?style=flat-square&logo=three.js&logoColor=white) |
 | ![License](https://img.shields.io/badge/License-MIT-F1C40F?style=flat-square) | ![Deps](https://img.shields.io/badge/Dependencies-0-9CA3AF?style=flat-square) |
 
@@ -200,7 +200,7 @@ const CONFIG = {
 
 - [ ] **v0.1** — 단일 HTML MVP: Lorenz ODE + Three.js BufferGeometry 궤적 + 자동 공전
 - [ ] **v0.2** — 속도 기반 컬러맵 + 슬라이더 UI (σ, ρ, β, dt)
-- [ ] **v0.3** — Vercel 배포 + 라이브 데모
+- [x] **v0.3** — GitHub Pages 배포 + 라이브 데모
 - [ ] **v0.4** — 다중 어트랙터 동시 표시 (Rössler, Aizawa, Thomas 등)
 - [ ] **v0.5** — 트레일 페이드 효과 (일정 비율로 옛 포인트 소멸)
 - [ ] **v0.6** — Record & replay (MP4 / GIF / WebM)
